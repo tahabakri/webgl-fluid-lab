@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WebGL Fluid Lab — Interactive Fluid Text Distortion</title>
+  <meta name="description" content="A real-time GPU wave simulation that ripples and refracts type. Built with Three.js and GLSL." />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+</head>
+<body class="select-none text-[#ff5a19]">
+
+  <!-- Fullscreen WebGL canvas -->
+  <canvas id="webgl_canvas"></canvas>
+
+  <!-- Header overlay -->
+  <header class="fixed top-0 left-0 right-0 z-40 p-6 flex justify-between items-center pointer-events-none">
+    <div class="flex items-center gap-3 pointer-events-auto cursor-pointer">
+      <span class="w-8 h-8 rounded-full bg-[#fff8e7] flex items-center justify-center border border-[#ff5a19]/10 shadow-sm">
+        <span class="font-['JetBrains_Mono'] text-xs font-bold">F</span>
+      </span>
+      <span class="font-['JetBrains_Mono'] text-sm font-bold tracking-tight">FLUID.LAB</span>
+    </div>
+    <div class="hidden md:flex items-center gap-8 text-xs font-semibold uppercase tracking-wider pointer-events-auto">
+      <a href="#" class="hover:opacity-75 transition-opacity">Simulation</a>
+      <a href="#" class="hover:opacity-75 transition-opacity">GLSL Shaders</a>
+      <a href="#" class="hover:opacity-75 transition-opacity">Vite + Three.js</a>
+    </div>
+    <a
+      href="https://github.com/tahabakri/webgl-fluid-lab"
+      target="_blank"
+      rel="noopener"
+      class="pointer-events-auto rounded-full px-4 py-2 bg-[#fff8e7] border border-[#ff5a19]/10 text-xs font-bold uppercase hover:bg-orange-50 transition-all shadow-sm"
+    >
+      Clone Repo
+    </a>
+  </header>
+
+  <!-- Floating control panel -->
+  <div class="control-panel rounded-3xl p-5 backdrop-blur-md">
+    <div class="flex items-center gap-3 border-b border-[#ff5a19]/10 pb-4 mb-4">
+      <div class="w-8 h-8 rounded-xl bg-orange-100 flex items-center justify-center text-[#ff5a19]">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5" aria-hidden="true">
+          <path fill-rule="evenodd" d="M11.078 2.25c-.917 0-1.699.663-1.85 1.567L9.05 4.889c-.02.12-.115.26-.297.348a7.493 7.493 0 0 0-.986.57c-.166.115-.334.126-.45.083L6.3 5.508a1.875 1.875 0 0 0-2.282.819l-.922 1.597a1.875 1.875 0 0 0 .432 2.385l.84.692c.095.078.17.229.154.43a7.598 7.598 0 0 0 0 1.139c.015.2-.059.352-.153.43l-.841.692a1.875 1.875 0 0 0-.432 2.385l.922 1.597a1.875 1.875 0 0 0 2.282.818l1.019-.382c.115-.043.283-.031.45.082.312.214.641.405.985.57.182.088.277.228.297.35l.178 1.071c.151.904.933 1.567 1.85 1.567h1.844c.917 0 1.699-.663 1.85-1.567l.178-1.072c.02-.12.114-.26.297-.349.344-.165.673-.356.985-.57.167-.114.335-.125.45-.082l1.02.382a1.875 1.875 0 0 0 2.28-.819l.923-1.597a1.875 1.875 0 0 0-.432-2.385l-.84-.692c-.095-.078-.17-.229-.154-.43a7.614 7.614 0 0 0 0-1.139c-.016-.2.059-.352.153-.43l.84-.692c.708-.582.891-1.59.433-2.385l-.922-1.597a1.875 1.875 0 0 0-2.282-.818l-1.02.382c-.114.043-.282.031-.449-.083a7.49 7.49 0 0 0-.985-.57c-.183-.087-.277-.227-.297-.348l-.179-1.072a1.875 1.875 0 0 0-1.85-1.567h-1.843ZM12 15.75a3.75 3.75 0 1 0 0-7.5 3.75 3.75 0 0 0 0 7.5Z" clip-rule="evenodd" />
+        </svg>
+      </div>
+      <div>
+        <h4 class="text-sm font-bold text-stone-900 leading-none">Simulation Customizer</h4>
+        <p class="text-[10px] text-stone-500 mt-1">Manipulate the underlying frame-buffer physics</p>
+      </div>
+    </div>
+
+    <!-- Live controls -->
+    <div class="space-y-4 text-stone-800 text-xs">
+      <div>
+        <label for="custom_text_input" class="block font-semibold text-stone-700 uppercase tracking-wide text-[10px] mb-1">Custom Display Phrase</label>
+        <input
+          type="text"
+          id="custom_text_input"
+          value="SOFT HORIZON"
+          maxlength="25"
+          class="w-full bg-white border border-[#ff5a19]/20 rounded-xl px-3.5 py-2 text-sm text-stone-900 focus:outline-none focus:border-[#ff5a19] transition-colors font-medium"
+        />
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label for="damping_slider" class="block font-semibold text-stone-700 uppercase tracking-wide text-[10px] mb-1">Damping (0.9 - 0.99)</label>
+          <input
+            type="range"
+            id="damping_slider"
+            min="0.90"
+            max="0.995"
+            step="0.005"
+            value="0.985"
+            class="w-full h-1 bg-stone-200 rounded-lg appearance-none cursor-pointer accent-[#ff5a19]"
+          />
+        </div>
+        <div>
+          <label for="disp_slider" class="block font-semibold text-stone-700 uppercase tracking-wide text-[10px] mb-1">Displacement Strength</label>
+          <input
+            type="range"
+            id="disp_slider"
+            min="0.05"
+            max="0.30"
+            step="0.01"
+            value="0.16"
+            class="w-full h-1 bg-stone-200 rounded-lg appearance-none cursor-pointer accent-[#ff5a19]"
+          />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
