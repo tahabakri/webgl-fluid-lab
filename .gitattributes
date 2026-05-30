@@ -1,0 +1,5 @@
+# Normalise line endings to LF in the repository.
+* text=auto eol=lf
+
+# Shader sources are text.
+*.glsl text

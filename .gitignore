@@ -1,0 +1,19 @@
+node_modules/
+dist/
+dist-ssr/
+*.local
+.vite/
+
+# Tooling / local config
+.claude/
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+Thumbs.db
