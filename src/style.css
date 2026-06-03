@@ -1,5 +1,17 @@
 @import "tailwindcss";
 
+:root {
+  /* Default palette: "Abyss" (deep water). Overwritten live by the customizer.
+     --accent == the scene background; --panel == the type colour. */
+  --bg: #08252b;
+  --text: #5eead4;
+  --accent: #08252b;
+  --accent-rgb: 8 37 43;
+  --panel: #5eead4;
+  --panel-text: #1c1917;
+  --panel-text-rgb: 28 25 23;
+}
+
 html,
 body {
   margin: 0;
@@ -7,7 +19,8 @@ body {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background-color: #ff5a19;
+  background-color: var(--bg);
+  color: var(--accent);
   font-family: 'Inter', sans-serif;
 }
 
@@ -22,16 +35,84 @@ body {
   pointer-events: all;
 }
 
+/* ---------------------------------------------------------------------------
+   Themeable helper classes — all colour comes from the CSS variables above, so
+   the overlay recolours the instant the palette changes.
+--------------------------------------------------------------------------- */
+.sl-panel-bg   { background-color: var(--panel); }
+.sl-panel-text { color: var(--panel-text); }
+.sl-panel-muted { color: rgb(var(--panel-text-rgb) / 0.55); }
+.sl-label      { color: rgb(var(--panel-text-rgb) / 0.7); }
+.sl-accent     { color: var(--accent); }
+.sl-accent-soft { background-color: rgb(var(--accent-rgb) / 0.12); color: var(--accent); }
+.sl-border     { border-color: rgb(var(--accent-rgb) / 0.12); }
+
 /* Floating control-panel HUD */
 .control-panel {
   position: fixed;
-  bottom: 2rem;
+  bottom: 1.5rem;
   left: 50%;
   transform: translateX(-50%);
   z-index: 50;
   width: calc(100% - 2rem);
-  max-width: 32rem;
-  background: rgba(255, 248, 231, 0.95);
-  border: 1px solid rgba(255, 90, 25, 0.15);
-  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.2);
+  max-width: 36rem;
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+  border: 1px solid rgb(var(--accent-rgb) / 0.15);
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.35);
 }
+
+/* Text input */
+.sl-input {
+  background-color: rgb(var(--panel-text-rgb) / 0.06);
+  border: 1px solid rgb(var(--panel-text-rgb) / 0.15);
+  color: var(--panel-text);
+  transition: border-color 0.15s ease;
+}
+.sl-input:focus { outline: none; border-color: var(--accent); }
+
+/* Range sliders */
+.sl-range {
+  width: 100%;
+  height: 4px;
+  cursor: pointer;
+  accent-color: var(--accent);
+}
+
+/* Preset palette swatches */
+.palette-swatch {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 9999px;
+  position: relative;
+  cursor: pointer;
+  flex: none;
+  padding: 0;
+  border: 2px solid rgb(var(--panel-text-rgb) / 0.15);
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+.palette-swatch:hover { transform: scale(1.12); }
+.palette-swatch.is-active { border-color: var(--panel-text); }
+.palette-swatch > span {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 9999px;
+}
+
+/* Native colour picker, restyled into a tidy swatch */
+.sl-color {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 0.6rem;
+  border: 1px solid rgb(var(--panel-text-rgb) / 0.2);
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+}
+.sl-color::-webkit-color-swatch-wrapper { padding: 2px; }
+.sl-color::-webkit-color-swatch { border: none; border-radius: 0.45rem; }
+.sl-color::-moz-color-swatch { border: none; border-radius: 0.45rem; }

@@ -5,6 +5,34 @@ import vertexShaderSource from './shaders/vertex.glsl?raw'
 import simFragmentShaderSource from './shaders/simulation.frag.glsl?raw'
 import renderFragmentShaderSource from './shaders/render.frag.glsl?raw'
 
+// Curated palettes — { name, bg (the "water"), text (the type) }.
+// The render pass refracts whatever the text canvas is painted with, so the
+// whole look is driven entirely by these two colours.
+const PRESETS = [
+  { name: 'Abyss', bg: '#08252b', text: '#5eead4' },
+  { name: 'Ember', bg: '#ff5a19', text: '#fff8e7' },
+  { name: 'Noir', bg: '#0b0b0d', text: '#f4f4f5' },
+  { name: 'Ultraviolet', bg: '#190a2e', text: '#c4b5fd' },
+  { name: 'Rose', bg: '#e11d48', text: '#ffe4e6' },
+  { name: 'Sand', bg: '#1c1917', text: '#fcd34d' },
+]
+
+// --- colour helpers ----------------------------------------------------------
+const hexToRgb = (hex) => {
+  const h = hex.replace('#', '')
+  const v = h.length === 3 ? h.split('').map((c) => c + c).join('') : h
+  const n = parseInt(v, 16)
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255]
+}
+const rgbaFromHex = (hex, a) => {
+  const [r, g, b] = hexToRgb(hex)
+  return `rgba(${r}, ${g}, ${b}, ${a})`
+}
+const luminance = (hex) => {
+  const [r, g, b] = hexToRgb(hex)
+  return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255
+}
+
 function init() {
   const canvas = document.getElementById('webgl_canvas')
   const dpr = Math.min(window.devicePixelRatio || 1, 2)
@@ -18,15 +46,42 @@ function init() {
     damping: 0.985,
     displacement: 0.16,
     brushRadius: 45.0,
+    bgColor: PRESETS[0].bg,
+    textColor: PRESETS[0].text,
   }
 
+  // Control-panel elements
   const textInput = document.getElementById('custom_text_input')
   const dampingSlider = document.getElementById('damping_slider')
   const dispSlider = document.getElementById('disp_slider')
+  const brushSlider = document.getElementById('brush_slider')
+  const bgPicker = document.getElementById('bg_color_input')
+  const textPicker = document.getElementById('text_color_input')
+  const swatchWrap = document.getElementById('palette_swatches')
+
+  const root = document.documentElement
+
+  // Push the active palette into CSS custom properties so the HTML overlay
+  // (header, panel, swatches) recolours live alongside the WebGL scene.
+  const setThemeVars = () => {
+    const { bgColor: bg, textColor: text } = settings
+    const [br, bg2, bb] = hexToRgb(bg)
+    // The panel background is the type colour; flip its text for contrast.
+    const panelLight = luminance(text) > 0.5
+    root.style.setProperty('--bg', bg)
+    root.style.setProperty('--text', text)
+    root.style.setProperty('--accent', bg)
+    root.style.setProperty('--accent-rgb', `${br} ${bg2} ${bb}`)
+    root.style.setProperty('--panel', text)
+    root.style.setProperty('--panel-text', panelLight ? '#1c1917' : '#f5f5f5')
+    root.style.setProperty('--panel-text-rgb', panelLight ? '28 25 23' : '245 245 245')
+    document.body.style.backgroundColor = bg
+  }
 
   // ---------------------------------------------------------------------------
   // Text texture: rasterise the headline + subtitle to a 2D canvas, then upload
-  // it as a GPU texture that the render pass refracts.
+  // it as a GPU texture that the render pass refracts. Colours come from
+  // `settings`, so re-running this is all it takes to recolour the scene.
   // ---------------------------------------------------------------------------
   const textCanvas = document.createElement('canvas')
   const textCtx = textCanvas.getContext('2d')
@@ -35,12 +90,12 @@ function init() {
     textCanvas.width = width * dpr
     textCanvas.height = height * dpr
 
-    textCtx.fillStyle = '#ff5a19'
+    textCtx.fillStyle = settings.bgColor
     textCtx.fillRect(0, 0, textCanvas.width, textCanvas.height)
 
     const fontSize = Math.round(140 * dpr)
     textCtx.font = `800 ${fontSize}px 'Inter', sans-serif`
-    textCtx.fillStyle = '#fff8e7'
+    textCtx.fillStyle = settings.textColor
     textCtx.textAlign = 'center'
     textCtx.textBaseline = 'middle'
     textCtx.letterSpacing = '-0.05em'
@@ -48,7 +103,7 @@ function init() {
 
     const subFontSize = Math.round(18 * dpr)
     textCtx.font = `400 ${subFontSize}px 'JetBrains Mono', monospace`
-    textCtx.fillStyle = 'rgba(255, 248, 231, 0.45)'
+    textCtx.fillStyle = rgbaFromHex(settings.textColor, 0.45)
     textCtx.letterSpacing = '0.2em'
     textCtx.fillText(
       'INTERACTIVE WATER REFRACTION LAB',
@@ -57,6 +112,7 @@ function init() {
     )
   }
 
+  setThemeVars()
   buildTextTexture()
 
   // ---------------------------------------------------------------------------
@@ -132,6 +188,52 @@ function init() {
   renderScene.add(new THREE.Mesh(quadGeometry, renderMaterial))
 
   // ---------------------------------------------------------------------------
+  // Palette: preset swatches + live colour pickers
+  // ---------------------------------------------------------------------------
+  const markActiveSwatch = () => {
+    swatchWrap.querySelectorAll('.palette-swatch').forEach((b) => {
+      const active =
+        b.dataset.bg.toLowerCase() === settings.bgColor.toLowerCase() &&
+        b.dataset.text.toLowerCase() === settings.textColor.toLowerCase()
+      b.classList.toggle('is-active', active)
+    })
+  }
+
+  // Apply a palette change everywhere: CSS vars + the refracted text texture.
+  const applyTheme = () => {
+    setThemeVars()
+    buildTextTexture()
+    textTexture.needsUpdate = true
+    if (bgPicker.value.toLowerCase() !== settings.bgColor.toLowerCase()) bgPicker.value = settings.bgColor
+    if (textPicker.value.toLowerCase() !== settings.textColor.toLowerCase()) textPicker.value = settings.textColor
+    markActiveSwatch()
+  }
+
+  PRESETS.forEach((p) => {
+    const btn = document.createElement('button')
+    btn.type = 'button'
+    btn.className = 'palette-swatch'
+    btn.title = p.name
+    btn.dataset.bg = p.bg
+    btn.dataset.text = p.text
+    btn.style.background = p.bg
+    const dot = document.createElement('span')
+    dot.style.background = p.text
+    btn.appendChild(dot)
+    btn.addEventListener('click', () => {
+      settings.bgColor = p.bg
+      settings.textColor = p.text
+      applyTheme()
+    })
+    swatchWrap.appendChild(btn)
+  })
+
+  // Sync picker swatches to the starting palette, then highlight its swatch.
+  bgPicker.value = settings.bgColor
+  textPicker.value = settings.textColor
+  markActiveSwatch()
+
+  // ---------------------------------------------------------------------------
   // Live controls
   // ---------------------------------------------------------------------------
   textInput.addEventListener('input', (e) => {
@@ -148,6 +250,21 @@ function init() {
   dispSlider.addEventListener('input', (e) => {
     settings.displacement = parseFloat(e.target.value)
     renderMaterial.uniforms.uDisplacement.value = settings.displacement
+  })
+
+  brushSlider.addEventListener('input', (e) => {
+    settings.brushRadius = parseFloat(e.target.value)
+    simMaterial.uniforms.uBrushRadius.value = settings.brushRadius
+  })
+
+  bgPicker.addEventListener('input', (e) => {
+    settings.bgColor = e.target.value
+    applyTheme()
+  })
+
+  textPicker.addEventListener('input', (e) => {
+    settings.textColor = e.target.value
+    applyTheme()
   })
 
   // ---------------------------------------------------------------------------
