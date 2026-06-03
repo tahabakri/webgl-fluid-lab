@@ -42,7 +42,7 @@ function init() {
 
   // Tunable simulation state, driven by the control panel.
   const settings = {
-    phrase: 'SOFT HORIZON',
+    phrase: 'LIQUID LIGHT',
     damping: 0.985,
     displacement: 0.16,
     brushRadius: 45.0,
