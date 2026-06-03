@@ -15,7 +15,8 @@
 
 - **GPU wave simulation** — a discrete 2D wave equation solved every frame in a fragment shader, no CPU physics.
 - **Pointer & touch ripples** — drop energy into the field wherever you move; works on mobile.
-- **Live controls** — change the display phrase, damping (how long ripples live), and displacement strength in real time.
+- **Fully customisable colours** — 6 curated palette presets plus background + type colour pickers. The whole scene *and* the control-panel UI recolour live; panel contrast is derived from luminance, so any palette stays readable.
+- **Live controls** — change the display phrase, damping (how long ripples live), displacement strength, and pointer brush size in real time.
 - **Retina aware & responsive** — scales to device pixel ratio and re-rasterises on resize.
 - **Lean** — one runtime dependency (Three.js). No engine, no framework, no analytics.
 
@@ -29,7 +30,7 @@ The effect is a two-pass render loop with a [ping-pong framebuffer](https://en.w
 2. **Render pass** (`src/shaders/render.frag.glsl`)
    The **gradient** of the wave field becomes a UV offset. Sampling the text texture through that offset bends the type exactly like light refracting through moving water. A small specular term along rising slopes adds the glints.
 
-The headline text itself is rasterised to a 2D `<canvas>` and uploaded as a texture, so any phrase distorts without baking image assets.
+The headline text itself is rasterised to a 2D `<canvas>` and uploaded as a texture, so any phrase distorts without baking image assets. Because both the background and the type are painted onto that canvas, switching palettes just re-paints it — the shaders never reference a colour, so the same refraction works for any scheme.
 
 ```
 pointer ──► [ simulation pass ] ──► float RT (height field) ──► [ render pass ] ──► screen
